@@ -33,7 +33,7 @@ struct PKey {
     uint32_t total_bytes;
     int32_t version;
     uint32_t obj_bytes;
-    uint32_t PDatime date_time;
+    struct PDatime date_time;
     uint16_t cycle;
     uint64_t seek_key;
     uint64_t seek_pdir;
@@ -105,7 +105,7 @@ int32_t get_i32(char *ptr) {
 }
 
 uint32_t get_u32(char *ptr) {
-    return (uint32_t)get_int(ptr);
+    return (uint32_t)get_i32(ptr);
 }
 
 uint64_t get_u64(char *ptr) {
@@ -118,12 +118,12 @@ int64_t get_i64(char *ptr) {
     return (int64_t)get_u64(ptr);
 }
 
-double get_double(char *ptr) {
-    return (double)get_long(ptr);
+double get_f64(char *ptr) {
+    return (double)get_u64(ptr);
 }
 
-float get_float(char *ptr) {
-    return (float)get_int(ptr);
+float get_f32(char *ptr) {
+    return (float)get_u32(ptr);
 }
 
 //
@@ -166,12 +166,12 @@ void build_file_header(struct Buffer buffer) {
     buffer.buffer+=4;
     dump_buffer(buffer, 20);
 
-    uint32_t version = get_uint32(buffer.buffer);
+    uint32_t version = get_u32(buffer.buffer);
     printf("version = %d\n", version);
     buffer.buffer+=4;
     dump_buffer(buffer, 20);
 
-    uint32_t begin = get_uint32(buffer.buffer);
+    uint32_t begin = get_u32(buffer.buffer);
     printf("begin = %d\n", begin);
     buffer.buffer+=4;
 
