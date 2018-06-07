@@ -404,7 +404,8 @@ void from_buf_dir(char **buffer, struct PDirectory *pdir) {
     }
 }
 
-void list_keys(struct FileContext ctx, struct PDirectory *pdir) {
+void list_keys(struct FileContext ctx, struct PDirectory *pdir, 
+               struct PKey ** pkeys, int *pnkeys) {
     // read into the buffer
     char *buffer = malloc(pdir->nbytes_keys);
     fseek(ctx.pfile, pdir->seek_keys, SEEK_SET);
@@ -418,13 +419,16 @@ void list_keys(struct FileContext ctx, struct PDirectory *pdir) {
     printf("\n");
 
     
-    uint32_t nkeys = get_u32(&buffer);
-    for (int i=0; i<nkeys; i++) {
-        struct PKey k;
-        ctor_key(&k);
-        from_buf_key(&buffer, &k);
-        print_key(&k);
-        printf("\n");
+    // get how many keys we have and allocate enough space on heap
+    *pnkeys = get_u32(&buffer);
+    *pkeys = malloc(sizeof(struct PKey)*(*pnkeys));
+
+    // iterate, construct, cast from from the in-memory buffer
+    for (int i=0; i<(*pnkeys); i++) {
+        // construct the i-th key in the allocate space
+        ctor_key(&((*pkeys)[i]));
+        // cast 
+        from_buf_key(&buffer, &((*pkeys)[i]));
     }
 }
 
@@ -470,6 +474,16 @@ void get_top_dir(struct FileContext ctx, struct PDirectory *pdir) {
     printf("\n");
 }
 
+void get_blob(struct FileContext ctx, struct PKey *pkey, char **blob) {
+    // read in the pre-allocated blob
+    fseek(ctx.pfile, pkey->seek_key, SEEK_SET);
+    size_t nbytes = fread((void*)*blob, 1, pkey->total_bytes, ctx.pfile);
+
+    struct PKey key;
+    ctor_key(&key);
+    from_buf_key(blob, &key);
+}
+
 void dump_contents(struct FileContext ctx) {
     // get top dir
     struct PDirectory dir;
@@ -477,7 +491,13 @@ void dump_contents(struct FileContext ctx) {
     get_top_dir(ctx, &dir);
 
     // list keys in this dir
-    list_keys(ctx, &dir);
+    struct PKey *pkeys; 
+    int nkeys;
+    list_keys(ctx, &dir, &pkeys, &nkeys);
+    for (int i=0; i<nkeys; i++) {
+        print_key(&(pkeys[i]));
+        printf("\n");
+    }
 }
 
 void test(char* filename) {
