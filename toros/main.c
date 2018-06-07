@@ -35,65 +35,81 @@ void swap_64(char *src, char *dest) {
     dest[7] = src[0];
 }
 
-uint16_t get_u16(char *ptr) {
+uint16_t get_u16(char ** ptr) {
     uint16_t value;
-    swap_16(ptr, (char*)&value);
+    swap_16(*ptr, (char*)&value);
+    *ptr+=2;
     return value;
 }
 
-int16_t get_i16(char *ptr) {
-    return (int16_t)get_u16(ptr);
+int16_t get_i16(char **ptr) {
+    return  (int16_t)get_u16(ptr);
 }
 
-int32_t get_i32(char *ptr) {
+int32_t get_i32(char **ptr) {
     int value;
-    swap_32(ptr, (char*)&value);
+    swap_32(*ptr, (char*)&value);
+    *ptr+=4;
     return value;
 }
 
-uint32_t get_u32(char *ptr) {
+uint32_t get_u32(char ** ptr) {
     return (uint32_t)get_i32(ptr);
 }
 
-uint64_t get_u64(char *ptr) {
+uint64_t get_u64(char **ptr) {
     uint64_t value;
-    swap_64(ptr, (char*)&value);
+    swap_64(*ptr, (char*)&value);
+    *ptr+=8;
     return value;
 }
 
-int64_t get_i64(char *ptr) {
+int64_t get_i64(char **ptr) {
     return (int64_t)get_u64(ptr);
 }
 
-double get_f64(char *ptr) {
+double get_f64(char **ptr) {
     return (double)get_u64(ptr);
 }
 
-float get_f32(char *ptr) {
+float get_f32(char **ptr) {
     return (float)get_u32(ptr);
 }
 
-uint32_t get_version(char *ptr) {
-    uint16_t v = get_u16(ptr); ptr+=2;
+uint32_t get_version(char **ptr) {
+    uint16_t v = get_u16(ptr);
     if ((v & 0x4000) == 0) 
         return (uint32_t)v;
 
-    uint32_t nbytes = ((v & 0x3fff) << 16) + get_u16(ptr); ptr+=2;
-    uint16_t res = get_u16(ptr); ptr+=2;
+    uint32_t nbytes = ((v & 0x3fff) << 16) + get_u16(ptr);
+    uint16_t res = get_u16(ptr);
     return res;
 }
 
-/*
-void get_string(char *src, char *dest) {
-    uint8_t size = (uint8_t)*ptr; ptr++;
-    if (size == 0)
-        dest = "";
-    else if (size == -1) {
-        uint32_t size = get_u32(ptr); ptr+=4;
-        dest = 
-        memcpy(dest, src, size);
-    } else 
-}*/
+void get_string(char **src, char **dest) {
+    int8_t size = **src; (*src)++;
+
+    // If the string is empty
+    if (size == 0) {
+        (*dest) = malloc(1);
+        (*dest)[0] = '\0';
+        return;
+    }
+    
+    // if more input is needed
+    if (size == -1) {
+        int size = get_i32(src); 
+        (*dest) = malloc(size);
+        memcpy(*dest, *src, size);
+        src+=size;
+        return;
+    }
+
+    // allocate size bytes and perform mem copy
+    (*dest) = malloc(size);
+    memcpy(*dest, *src, size);
+    *src+=size;
+}
 
 // 
 // bdebug stuff
@@ -152,6 +168,15 @@ void dump_raw(char *buf, int size, int nbytes_per_row) {
 #define print_f64(value) \
     printf(#value" = %lf\n", value)
 
+#define print_u16(value) \
+    printf(#value" = %hu\n", value)
+
+#define print_i16(value) \
+    printf(#value" = %hu\n", value)
+
+#define print_string(value) \
+    printf(#value" = %s\n", value);
+
 
 //
 // product structs
@@ -162,10 +187,43 @@ struct PDatime {
     uint32_t raw;
 };
 
-struct PDatime build_datime(char *buffer) {
-    struct PDatime datime;
-    datime.raw = get_u32(buffer); buffer+=4;
-    return datime;
+struct PNamed {
+    struct PObject object;
+    char *name;
+    char *title;
+};
+
+void print_named(struct PNamed *pnamed) {
+    printf("Product <PNamed>:\n");
+    printf("-------------------\n");
+    print_string(pnamed->name);
+    print_string(pnamed->title);
+}
+
+void print_datime(struct PDatime *pdatime) {
+    printf("Product <PDatime>:\n");
+    printf("-------------------\n");
+    print_u32(pdatime->raw);
+}
+
+void from_buf_datime(char **buffer, struct PDatime *pdatime) {
+    pdatime->raw = get_u32(buffer);
+}
+
+void ctor_datime(struct PDatime *pdatime) {}
+
+void dtor_datime(struct PDatime *pdatime) {}
+
+void from_buf_named(char **buffer, struct PNamed *pnamed) {
+    get_string(buffer, &pnamed->name);
+    get_string(buffer, &pnamed->title);
+}
+
+void ctor_named(struct PNamed *pnamed) {}
+
+void dtor_named(struct PNamed *pnamed) {
+    free(pnamed->name);
+    free(pnamed->title);
 }
 
 //
@@ -202,38 +260,38 @@ void print_file_header(struct PFileHeader *pheader) {
     print_u32(pheader->nbytes_info);
 }
 
-struct PFileHeader build_file_header(struct Buffer buffer) {
-    if (strncmp(buffer.buffer, "root", 4)) {
+void ctor_file_header(struct PFileHeader *pheader) {}
+
+void dtor_file_header(struct PFileHeader *pheader) {}
+
+void from_buf_file_header(char **buffer, struct PFileHeader *pheader) {
+    printf("builing a file header\n");
+
+    if (strncmp(*buffer, "root", 4)) {
         printf("not a root file\n");
         assert(0);
     }
-    buffer.buffer+=4;
-    dump_buffer(buffer, 20);
+    *buffer+=4;
+    dump_raw(*buffer, 100, 20);
 
-    struct PFileHeader header;
+    pheader->version = get_u32(buffer);
+    printf("version = %d\n", pheader->version);
+    dump_raw(*buffer, 100, 20);
 
-    header.version = get_u32(buffer.buffer);
-    printf("version = %d\n", header.version);
-    buffer.buffer+=4;
-    dump_buffer(buffer, 20);
+    pheader->begin = get_u32(buffer);
+    printf("begin = %d\n", pheader->begin);
 
-    header.begin = get_u32(buffer.buffer);
-    printf("begin = %d\n", header.begin);
-    buffer.buffer+=4;
-
-    if (header.version > 1000000u) {
-        header.end = get_u64(buffer.buffer); buffer.buffer+=8;
-        header.seek_free = get_u64(buffer.buffer); buffer.buffer+=8;
+    if (pheader->version > 1000000u) {
+        pheader->end = get_u64(buffer);
+        pheader->seek_free = get_u64(buffer);
     }
-    header.nbytes_free = get_u32(buffer.buffer); buffer.buffer+=4;
-    header.nfree = get_u32(buffer.buffer); buffer.buffer+=4;
-    header.nbytes_name = get_u32(buffer.buffer); buffer.buffer+=4;
-    header.units = *(buffer.buffer); buffer.buffer++;
-    header.compress = get_u32(buffer.buffer); buffer.buffer+=4;
-    header.seek_info = get_u64(buffer.buffer); buffer.buffer+=8;
-    header.nbytes_info = get_u32(buffer.buffer); buffer.buffer+=4;
-
-    return header;
+    pheader->nbytes_free = get_u32(buffer);
+    pheader->nfree = get_u32(buffer);
+    pheader->nbytes_name = get_u32(buffer);
+    pheader->units = **buffer; (*buffer)++; // manually change the buffer pointer
+    pheader->compress = get_u32(buffer);
+    pheader->seek_info = get_u64(buffer);
+    pheader->nbytes_info = get_u32(buffer);
 }
 
 //
@@ -245,6 +303,7 @@ struct PKey {
     int32_t version;
     uint32_t obj_bytes;
     struct PDatime date_time;
+    uint16_t key_bytes;
     uint16_t cycle;
     uint64_t seek_key;
     uint64_t seek_pdir;
@@ -253,11 +312,55 @@ struct PKey {
     char *obj_title;
 };
 
+void print_key(struct PKey *pkey) {
+    printf("Product <PKey>:\n");
+    printf("----------------\n");
+    print_u32(pkey->total_bytes);
+    print_u32(pkey->version);
+    print_u32(pkey->obj_bytes);
+    print_datime(&(pkey->date_time));
+    print_u16(pkey->key_bytes);
+    print_u16(pkey->cycle);
+    print_u64(pkey->seek_key);
+    print_u64(pkey->seek_pdir);
+    print_string(pkey->class_name);
+    print_string(pkey->obj_name);
+    print_string(pkey->obj_title);
+}
+
+void ctor_key(struct PKey *pkey) {}
+
+void dtor_key(struct PKey *pkey) {
+    free(pkey->class_name);
+    free(pkey->obj_name);
+    free(pkey->obj_title);
+}
+
+void from_buf_key(char **buffer, struct PKey *pkey) {
+    pkey->total_bytes = get_u32(buffer);
+    pkey->version = get_version(buffer);
+    pkey->obj_bytes = get_u32(buffer);
+    from_buf_datime(buffer, &(pkey->date_time));
+    pkey->key_bytes = get_u16(buffer);
+    pkey->cycle = get_u16(buffer);
+    if (pkey->version > 1000) {
+        pkey->seek_key = get_u64(buffer);
+        pkey->seek_pdir = get_u64(buffer);
+    } else {
+        pkey->seek_key = get_u32(buffer);
+        pkey->seek_pdir = get_u32(buffer);
+    }
+    get_string(buffer, &(pkey->class_name));
+    get_string(buffer, &(pkey->obj_name));
+    get_string(buffer, &(pkey->obj_title));
+}
+
 //
 // directory product
 //
 struct PDirectory {
     struct PObject object;
+    uint32_t version;
     struct PDatime date_time_c;
     struct PDatime date_time_m;
     uint32_t nbytes_keys;
@@ -267,23 +370,114 @@ struct PDirectory {
     uint64_t seek_keys;
 };
 
+void ctor_dir(struct PDirectory *pdir) {}
+
+void dtor_dir(struct PDirectory *pdir) {}
+
+void print_dir(struct PDirectory *pdir) {
+    printf("Product <PDirectory>:\n");
+    printf("-----------------------\n");
+    print_u32(pdir->version);
+    print_datime(&(pdir->date_time_c));
+    print_datime(&(pdir->date_time_m));
+    print_u32(pdir->nbytes_keys);
+    print_u32(pdir->nbytes_name);
+    print_u64(pdir->seek_dir);
+    print_u64(pdir->seek_parent);
+    print_u64(pdir->seek_keys);
+}
+
+void from_buf_dir(char **buffer, struct PDirectory *pdir) {
+    pdir->version = get_version(buffer);
+    from_buf_datime(buffer, &(pdir->date_time_c)); // ptr is taken care of
+    from_buf_datime(buffer, &(pdir->date_time_m)); // same
+    pdir->nbytes_keys = get_u32(buffer);
+    pdir->nbytes_name = get_u32(buffer);
+    if (pdir->version > 1000) {
+        pdir->seek_dir = get_u64(buffer);
+        pdir->seek_parent = get_u64(buffer);
+        pdir->seek_keys = get_u64(buffer);
+    } else {
+        pdir->seek_dir = get_u32(buffer);
+        pdir->seek_parent = get_u32(buffer);
+        pdir->seek_keys = get_u32(buffer);
+    }
+}
+
+void list_keys(struct FileContext ctx, struct PDirectory *pdir) {
+    // read into the buffer
+    char *buffer = malloc(pdir->nbytes_keys);
+    fseek(ctx.pfile, pdir->seek_keys, SEEK_SET);
+    size_t nbytes = fread((void*)buffer, 1, pdir->nbytes_keys, ctx.pfile);
+
+    // tlist key
+    struct PKey key;
+    ctor_key(&key);
+    from_buf_key(&buffer, &key);
+    print_key(&key);
+    printf("\n");
+
+    
+    uint32_t nkeys = get_u32(&buffer);
+    for (int i=0; i<nkeys; i++) {
+        struct PKey k;
+        ctor_key(&k);
+        from_buf_key(&buffer, &k);
+        print_key(&k);
+        printf("\n");
+    }
+}
+
 //
 // some logic
 //
-void get_top_dir(struct FileContext ctx) {
-    char buffer[300];
+void get_top_dir(struct FileContext ctx, struct PDirectory *pdir) {
+    char *buffer = malloc(300);
     size_t nbytes = fread((void*)buffer, 1, 300, ctx.pfile);
-    struct Buffer buf = {nbytes, buffer};
+    char *start = buffer;
 
     printf("read nbytes = %lu\n", nbytes);
-    dump_buffer(buf, 20);
+    dump_raw(buffer, nbytes, 20);
+    dump_raw(buffer, nbytes, 20);
+    dump_raw(buffer, nbytes, 20);
 
-    struct PFileHeader header = build_file_header(buf);
+    // get the file header
+    struct PFileHeader header;
+    ctor_file_header(&header);
+    from_buf_file_header(&buffer, &header);
     print_file_header(&header);
+
+    printf("\n");
+
+    // top dir key
+    start+=100;
+    struct PKey key;
+    ctor_key(&key);
+    from_buf_key(&start, &key);
+    print_key(&key);
+    printf("\n");
+
+    // get named stuff
+    struct PNamed named;
+    ctor_named(&named);
+    from_buf_named(&start, &named);
+    print_named(&named);
+    printf("\n");
+
+    // dir
+    from_buf_dir(&start, pdir);
+    print_dir(pdir);
+    printf("\n");
 }
 
-void debug(struct FileContext ctx) {
-    get_top_dir(ctx);
+void dump_contents(struct FileContext ctx) {
+    // get top dir
+    struct PDirectory dir;
+    ctor_dir(&dir);
+    get_top_dir(ctx, &dir);
+
+    // list keys in this dir
+    list_keys(ctx, &dir);
 }
 
 void test(char* filename) {
@@ -293,7 +487,7 @@ void test(char* filename) {
     struct FileContext ctx;
     ctx.pfile = fopen(filename, "r");
 
-    debug(ctx);
+    dump_contents(ctx);
 }
 
 int main(int argc, char ** argv) {
