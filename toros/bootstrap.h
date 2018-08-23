@@ -118,4 +118,7 @@ void get_top_dir(struct FileContext ctx, struct PDirectory *pdir);
 void get_blob(struct FileContext ctx, struct PKey *pkey, char **blob);
 void dump_contents(struct FileContext ctx);
 
+struct FileContext* open_context(char*);
+void close_context(struct FileContext*);
+
 #endif // bootstrap_h

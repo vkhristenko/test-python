@@ -272,3 +272,14 @@ void dump_contents(struct FileContext ctx) {
         printf("\n");
     }
 }
+
+struct FileContext open_context(char* filename) {
+    FILE *file = fopen(filename, "r");
+    struct FileContext ctx;
+    ctx.pfile = file;
+    return ctx;
+}  
+
+void close_context(struct FileContext ctx) {
+    fclose(ctx.pfile);
+}
