@@ -273,10 +273,9 @@ void dump_contents(struct FileContext ctx) {
     }
 }
 
-struct FileContext open_context(char* filename) {
-    FILE *file = fopen(filename, "r");
+struct FileContext open_context(char* filename, char *opts) {
     struct FileContext ctx;
-    ctx.pfile = file;
+    ctx.pfile = fopen(filename, opts);
     return ctx;
 }  
 
