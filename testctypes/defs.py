@@ -65,6 +65,17 @@ if __name__ == "__main__":
         def move_point_inplace(self, x, y):
             self.func_move_point_inplace(self, x, y)
 
+    class String(Structure):
+        _fields_ = [
+            ("size", ctypes.c_int),
+            ("str", ctypes.c_char_p)
+        ]
+
+    class StringWrapper(Structure):
+        _fields_ = [
+            ("str", String)
+        ]
+
     p1 = Point(lib, 1,2)
     print p1
     p1.show_point_by_value()
@@ -86,3 +97,11 @@ if __name__ == "__main__":
     modify_and_print_ints = wrap_cfunc(lib, "modify_and_print_ints", None, cints, ctypes.c_int)
     print_ints(arr, n)
     modify_and_print_ints(arr, n)
+
+    new_string = wrap_cfunc(lib, "new_string", String)
+    s = new_string()
+    print s
+
+    new_wrapper = wrap_cfunc(lib, "new_string_wrapper", StringWrapper)
+    w = new_wrapper()
+    print w

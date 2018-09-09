@@ -2,6 +2,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+struct string_t {
+    int size;
+    char *str;
+};
+
+struct string_wrapper_t {
+    struct string_t str;
+};
+
+struct string_t new_string() {
+    struct string_t str;
+    str.str = malloc(10);
+    str.str[0] = 'a';
+    str.size = 10;
+
+    return str;
+}
+
+struct string_wrapper_t new_string_wrapper() {
+    struct string_wrapper_t wrapper;
+    wrapper.str = new_string();
+
+    return wrapper;
+}
+
 void my_print(int x) {
     printf("value = %d\n", x);
 }
@@ -96,9 +121,4 @@ void show_line_by_ref(struct line_t *l)
 struct rectangle_t {
     struct point_t left_upper_corner;
     struct point_t right_bottom_corner;
-};
-
-struct string_t {
-    char *str;
-    int length;
 };
