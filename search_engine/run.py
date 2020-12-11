@@ -1,3 +1,7 @@
+#
+# https://towardsdatascience.com/create-a-simple-search-engine-using-python-412587619ff5
+#
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -10,7 +14,7 @@ for i in soup.find("div", {"class":"most__wrap"}).find_all("a"):
     links.append(i["href"])
 
 print("------ Links ------")
-print(links)
+print(len(links))
 print("------ End of Links ------")
 
 docs = []
@@ -24,7 +28,7 @@ for i in links:
     docs.append(" ".join(sen))
 
 print("------ Docs -----")
-print(docs)
+print(len(docs))
 print("------ End of Docs -----")
 
 import re
@@ -47,7 +51,7 @@ for d in docs:
     docs_clean.append(document_test)
 
 print("------ Cleaned Docs -----")
-print(docs_clean)
+print(len(docs_clean))
 print("------ End of Cleaned Docs -----")
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -62,7 +66,9 @@ X = X.T.toarray()
 # Create a DataFrame and set the vocabulary as the index
 df = pd.DataFrame(X, index=vectorizer.get_feature_names())
 
-print(df)
+print(df.shape)
+print(df.loc[:, 0])
+print(df.loc[:, 1])
 
 def get_similar_articles(q, df):
   print("query:", q)
@@ -71,7 +77,7 @@ def get_similar_articles(q, df):
   q_vec = vectorizer.transform(q).toarray().reshape(df.shape[0],)
   sim = {}
   # Calculate the similarity
-  for i in range(10):
+  for i in range(df.shape[1]):
     sim[i] = np.dot(df.loc[:, i].values, q_vec) / np.linalg.norm(df.loc[:, i]) * np.linalg.norm(q_vec)
 
   # Sort the values
@@ -83,5 +89,6 @@ def get_similar_articles(q, df):
       print(docs[k])
       print()
 
-q1 = "another day in"
+#q1 = "Ronaldo"
+q1 = "bersama seorang"
 get_similar_articles(q1, df)
