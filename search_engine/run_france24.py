@@ -1,6 +1,8 @@
 #!/bin/python3
 #
-# running a simple search over CNN site
+# running a simple search over https://www.france24.com site
+# install requirements with
+# python3 -m pip install bs4 requests sklearn pandas numpy
 #
 
 import requests
@@ -13,12 +15,13 @@ import sys
 import json
 
 def get_links(url):
+    """
+    Get all the references from the provided url
+    """
     headers = {'User-agent': 'Mozilla/5.0'}
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.content, "html.parser")
-    #print(soup.prettify())
     links = []
-    #divWithArticles = soup.find("div", {"class": "o-layout-list o-banana-split__main-articles"})
     divWithArticles = soup.find("div", {"class": "t-content t-content--page-builder"})
     for a in divWithArticles.find_all("a"):
         links.append(url + a["href"])
@@ -26,6 +29,9 @@ def get_links(url):
     return links
 
 def get_docs(links):
+    """
+    Given all the links, extract the text/article documents
+    """
     headers = {'User-agent': 'Mozilla/5.0'}
     docs = []
     counter = 0
@@ -46,6 +52,9 @@ def get_docs(links):
     return docs
 
 def clean_docs(docs):
+    """
+    Clean up all the documents in order to simplify search thru them
+    """
     docs_clean = []
     for d in docs:
         # Remove Unicode
@@ -65,6 +74,9 @@ def clean_docs(docs):
     return docs_clean
 
 def create_tfidf(docs):
+    """
+    Use TF-IDF as metric for identifying texts that are "similar" to the query
+    """
     # Instantiate a TfidfVectorizer object
     vectorizer = TfidfVectorizer()
     # It fits the data and transform it as a vector
@@ -76,6 +88,9 @@ def create_tfidf(docs):
     return (df, vectorizer)
 
 def run_query(query, df, vectorizer):
+    """
+    Run the query string against all the searched documents
+    """
     print("query string:", query)
 
     # transform the query string into proper input form
@@ -91,14 +106,20 @@ def run_query(query, df, vectorizer):
     sim_sorted = sorted(sim.items(), key=lambda x: x[1], reverse=True)
     return sim_sorted
 
+def print_usage():
+    print("run with: python3 run_france24.py [--use-cache]")
+
 def main():
     useCache = False
-    if len(sys.argv)>1: 
-        useCache = int(sys.argv[1])>0
+    if len(sys.argv)>1:
+        if sys.argv[1] == "--help":
+            print_usage()
+            sys.exit(0)
+        useCache = sys.argv[1] == "--use-cache"
     cacheFileName = "cache_france24.json"
     if useCache:
-        docs = json.load(open(cacheFileName))
-        pass
+        with open(cacheFileName) as f:
+            docs = json.load(f)
     else:
         url = "https://www.france24.com"
 
@@ -137,7 +158,7 @@ def main():
             print(docs[k])
             print("------------------")
 
-query = "covid 19"
+query = "students missing"
 
 if __name__ == "__main__":
     main()
