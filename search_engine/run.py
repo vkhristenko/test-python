@@ -72,7 +72,7 @@ print(df.loc[:, 1])
 
 def get_similar_articles(q, df):
   print("query:", q)
-  # Convert the query become a vector
+  # to vector
   q = [q]
   q_vec = vectorizer.transform(q).toarray().reshape(df.shape[0],)
   sim = {}
@@ -85,10 +85,9 @@ def get_similar_articles(q, df):
   # Print the articles and their similarity values
   for k, v in sim_sorted:
     if v != 0.0:
-      print("Nilai Similaritas:", v)
+      print("Similiarity Value:", v)
       print(docs[k])
       print()
 
-#q1 = "Ronaldo"
-q1 = "bersama seorang"
-get_similar_articles(q1, df)
+query = "bersama seorang"
+get_similar_articles(query, df)
